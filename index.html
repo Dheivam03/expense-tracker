@@ -1,0 +1,1081 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="theme-color" content="#0f0f13" />
+  <title>Splits — Expense Tracker</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <style>
+    /* ── TOKENS ───────────────────────────────────────── */
+    :root {
+      --bg:        #0f0f13;
+      --surface:   #17171e;
+      --rim:       #2a2a35;
+      --muted:     #4a4a5e;
+      --text:      #e8e8f0;
+      --sub:       #9090a8;
+      --add:       #4ade80;   /* green for add */
+      --red:       #f87171;   /* red for reduce */
+      --accent:    #818cf8;   /* indigo accent */
+      --gold:      #fbbf24;
+      --r:         18px;
+      --r-sm:      10px;
+      --mono:      'DM Mono', monospace;
+      --sans:      'DM Sans', sans-serif;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; overflow: hidden; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--sans);
+      -webkit-font-smoothing: antialiased;
+      overscroll-behavior: none;
+    }
+
+    /* ── SCREENS ──────────────────────────────────────── */
+    .screen {
+      position: fixed; inset: 0;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      transition: opacity .3s, transform .3s;
+    }
+    .screen.hidden { opacity: 0; pointer-events: none; transform: translateY(20px); }
+
+    /* ── LOGIN ────────────────────────────────────────── */
+    #loginScreen {
+      gap: 48px;
+      padding: 32px;
+    }
+    .login-logo {
+      text-align: center;
+    }
+    .login-logo .logo-mark {
+      font-family: var(--mono);
+      font-size: 48px;
+      letter-spacing: -2px;
+      color: var(--accent);
+    }
+    .login-logo h1 {
+      font-size: 28px;
+      font-weight: 300;
+      letter-spacing: 4px;
+      text-transform: uppercase;
+      color: var(--sub);
+      margin-top: 8px;
+    }
+    .name-input-wrap {
+      width: 100%;
+      max-width: 320px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .name-input-wrap label {
+      font-size: 11px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .name-input-wrap input {
+      background: var(--surface);
+      border: 1.5px solid var(--rim);
+      border-radius: var(--r);
+      color: var(--text);
+      font-family: var(--sans);
+      font-size: 20px;
+      font-weight: 500;
+      padding: 18px 22px;
+      outline: none;
+      width: 100%;
+      transition: border-color .2s;
+    }
+    .name-input-wrap input:focus { border-color: var(--accent); }
+    .name-input-wrap input::placeholder { color: var(--muted); }
+    .btn-primary {
+      background: var(--accent);
+      border: none;
+      border-radius: var(--r);
+      color: #fff;
+      cursor: pointer;
+      font-family: var(--sans);
+      font-size: 16px;
+      font-weight: 600;
+      letter-spacing: .5px;
+      padding: 18px;
+      width: 100%;
+      transition: opacity .15s, transform .1s;
+    }
+    .btn-primary:active { opacity: .85; transform: scale(.98); }
+    .login-hint {
+      font-size: 12px;
+      color: var(--muted);
+      text-align: center;
+      line-height: 1.6;
+    }
+
+    /* ── HOME ─────────────────────────────────────────── */
+    #homeScreen {
+      justify-content: flex-start;
+      padding: 0;
+      overflow: hidden;
+    }
+    .home-header {
+      width: 100%;
+      padding: 56px 24px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .header-left {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .greeting {
+      font-size: 12px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .username-display {
+      font-size: 20px;
+      font-weight: 600;
+      color: var(--text);
+    }
+    .header-actions {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+    .icon-btn {
+      background: var(--surface);
+      border: 1.5px solid var(--rim);
+      border-radius: 50%;
+      color: var(--sub);
+      cursor: pointer;
+      width: 42px; height: 42px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 18px;
+      transition: background .15s, border-color .15s;
+    }
+    .icon-btn:active { background: var(--rim); }
+
+    /* ── MONTH TOTAL CARD ─────────────────────────────── */
+    .month-card {
+      width: calc(100% - 48px);
+      margin: 0 24px;
+      background: linear-gradient(135deg, #1e1e2e 0%, #16162a 100%);
+      border: 1.5px solid var(--rim);
+      border-radius: 24px;
+      padding: 28px 28px 24px;
+      position: relative;
+      overflow: hidden;
+    }
+    .month-card::before {
+      content: '';
+      position: absolute;
+      top: -40px; right: -40px;
+      width: 140px; height: 140px;
+      background: radial-gradient(circle, rgba(129,140,248,.15) 0%, transparent 70%);
+      pointer-events: none;
+    }
+    .month-label {
+      font-size: 11px;
+      letter-spacing: 2.5px;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
+    .month-total {
+      font-family: var(--mono);
+      font-size: 44px;
+      font-weight: 500;
+      color: var(--text);
+      line-height: 1;
+      letter-spacing: -1px;
+    }
+    .month-total .currency {
+      font-size: 22px;
+      color: var(--sub);
+      margin-right: 2px;
+    }
+    .month-divider {
+      height: 1px;
+      background: var(--rim);
+      margin: 20px 0;
+    }
+    .member-totals {
+      display: flex;
+      gap: 0;
+    }
+    .member-total {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .member-total + .member-total {
+      border-left: 1px solid var(--rim);
+      padding-left: 20px;
+      margin-left: 20px;
+    }
+    .member-name {
+      font-size: 11px;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .member-name .dot {
+      display: inline-block;
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      margin-right: 6px;
+      vertical-align: middle;
+    }
+    .member-amount {
+      font-family: var(--mono);
+      font-size: 22px;
+      font-weight: 500;
+      color: var(--text);
+    }
+
+    /* ── SWIPE ZONE ───────────────────────────────────── */
+    .swipe-zone {
+      flex: 1;
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      gap: 0;
+      margin-top: 20px;
+      touch-action: pan-y;
+      user-select: none;
+    }
+    .swipe-hint {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+    }
+    .hint-arrow {
+      font-size: 22px;
+      animation: pulse-arrow 2s ease-in-out infinite;
+      color: var(--muted);
+    }
+    .hint-arrow.up { animation-delay: 0s; color: var(--add); }
+    .hint-arrow.down { animation-delay: .4s; color: var(--red); }
+    @keyframes pulse-arrow {
+      0%, 100% { opacity: .3; transform: translateY(0); }
+      50% { opacity: .9; transform: translateY(-4px); }
+    }
+    .hint-label {
+      font-size: 11px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .swipe-center {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      margin: 18px 0;
+    }
+    .swipe-icon-ring {
+      width: 72px; height: 72px;
+      border-radius: 50%;
+      border: 2px solid var(--rim);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 28px;
+      color: var(--sub);
+      transition: all .2s;
+      position: relative;
+      background: var(--surface);
+    }
+    .swipe-label {
+      font-size: 12px;
+      color: var(--muted);
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+    }
+
+    /* Swipe feedback */
+    .swipe-zone.dragging-up .swipe-icon-ring {
+      border-color: var(--add);
+      color: var(--add);
+      background: rgba(74, 222, 128, .1);
+      transform: scale(1.12);
+    }
+    .swipe-zone.dragging-down .swipe-icon-ring {
+      border-color: var(--red);
+      color: var(--red);
+      background: rgba(248, 113, 113, .1);
+      transform: scale(1.12);
+    }
+
+    /* ── LIVE INDICATOR ───────────────────────────────── */
+    .live-indicator {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: var(--muted);
+      padding: 0 24px 20px;
+      width: 100%;
+    }
+    .live-dot {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: var(--add);
+      animation: blink 2s ease-in-out infinite;
+    }
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: .3; }
+    }
+
+    /* ── MODAL ────────────────────────────────────────── */
+    .modal-overlay {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,.7);
+      backdrop-filter: blur(8px);
+      z-index: 100;
+      display: flex;
+      align-items: flex-end;
+      transition: opacity .25s;
+    }
+    .modal-overlay.hidden { opacity: 0; pointer-events: none; }
+    .modal-sheet {
+      background: var(--surface);
+      border-radius: 28px 28px 0 0;
+      border-top: 1.5px solid var(--rim);
+      padding: 12px 28px 48px;
+      width: 100%;
+      transform: translateY(0);
+      transition: transform .3s cubic-bezier(.4,0,.2,1);
+    }
+    .modal-overlay.hidden .modal-sheet { transform: translateY(100%); }
+    .modal-handle {
+      width: 40px; height: 4px;
+      background: var(--rim);
+      border-radius: 2px;
+      margin: 0 auto 28px;
+    }
+    .modal-title {
+      font-size: 13px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .modal-title .mode-badge {
+      font-size: 10px;
+      padding: 3px 10px;
+      border-radius: 99px;
+      font-weight: 600;
+    }
+    .modal-title .mode-badge.add { background: rgba(74,222,128,.15); color: var(--add); }
+    .modal-title .mode-badge.sub { background: rgba(248,113,113,.15); color: var(--red); }
+    .amount-input-wrap {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin: 12px 0 24px;
+      border-bottom: 2px solid var(--rim);
+      padding-bottom: 12px;
+      transition: border-color .2s;
+    }
+    .amount-input-wrap:focus-within { border-color: var(--accent); }
+    .amount-symbol {
+      font-family: var(--mono);
+      font-size: 36px;
+      color: var(--muted);
+    }
+    #amountInput {
+      background: none;
+      border: none;
+      outline: none;
+      font-family: var(--mono);
+      font-size: 52px;
+      font-weight: 500;
+      color: var(--text);
+      width: 100%;
+      -moz-appearance: textfield;
+    }
+    #amountInput::-webkit-inner-spin-button,
+    #amountInput::-webkit-outer-spin-button { -webkit-appearance: none; }
+    .modal-date {
+      font-size: 12px;
+      letter-spacing: 1px;
+      color: var(--muted);
+      margin-bottom: 20px;
+    }
+    .modal-actions {
+      display: flex;
+      gap: 12px;
+    }
+    .btn-cancel {
+      flex: 1;
+      background: none;
+      border: 1.5px solid var(--rim);
+      border-radius: var(--r);
+      color: var(--sub);
+      cursor: pointer;
+      font-family: var(--sans);
+      font-size: 16px;
+      font-weight: 500;
+      padding: 16px;
+      transition: background .15s;
+    }
+    .btn-cancel:active { background: var(--rim); }
+    .btn-confirm {
+      flex: 2;
+      border: none;
+      border-radius: var(--r);
+      color: #fff;
+      cursor: pointer;
+      font-family: var(--sans);
+      font-size: 16px;
+      font-weight: 600;
+      padding: 16px;
+      transition: opacity .15s, transform .1s;
+    }
+    .btn-confirm.add { background: linear-gradient(135deg, #22c55e, #4ade80); }
+    .btn-confirm.sub { background: linear-gradient(135deg, #ef4444, #f87171); }
+    .btn-confirm:active { opacity: .85; transform: scale(.98); }
+
+    /* ── HISTORY SCREEN ───────────────────────────────── */
+    #historyScreen {
+      justify-content: flex-start;
+      padding: 0;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+    .history-header {
+      width: 100%;
+      padding: 56px 24px 20px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      position: sticky;
+      top: 0;
+      background: var(--bg);
+      z-index: 10;
+      border-bottom: 1px solid var(--rim);
+    }
+    .back-btn {
+      background: var(--surface);
+      border: 1.5px solid var(--rim);
+      border-radius: 50%;
+      color: var(--sub);
+      cursor: pointer;
+      width: 42px; height: 42px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 18px;
+      flex-shrink: 0;
+    }
+    .history-title {
+      font-size: 20px;
+      font-weight: 600;
+    }
+    .history-body {
+      width: 100%;
+      padding: 20px 24px 40px;
+      display: flex;
+      flex-direction: column;
+      gap: 28px;
+    }
+    .month-group { display: flex; flex-direction: column; gap: 12px; }
+    .month-group-label {
+      font-size: 11px;
+      letter-spacing: 2.5px;
+      text-transform: uppercase;
+      color: var(--muted);
+      padding: 0 4px;
+    }
+    .month-summary-card {
+      background: var(--surface);
+      border: 1.5px solid var(--rim);
+      border-radius: var(--r);
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+    .month-summary-total {
+      font-family: var(--mono);
+      font-size: 28px;
+      color: var(--text);
+    }
+    .month-summary-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .month-summary-name {
+      font-size: 13px;
+      color: var(--sub);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .month-summary-amount {
+      font-family: var(--mono);
+      font-size: 16px;
+      color: var(--text);
+    }
+    /* Entry list */
+    .entries-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .entry-item {
+      background: var(--surface);
+      border: 1.5px solid var(--rim);
+      border-radius: var(--r-sm);
+      padding: 14px 18px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .entry-left {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+    .entry-who {
+      font-size: 12px;
+      color: var(--sub);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .entry-date {
+      font-size: 11px;
+      color: var(--muted);
+      letter-spacing: .5px;
+    }
+    .entry-amount {
+      font-family: var(--mono);
+      font-size: 18px;
+      font-weight: 500;
+    }
+    .entry-amount.positive { color: var(--add); }
+    .entry-amount.negative { color: var(--red); }
+    .empty-state {
+      text-align: center;
+      padding: 60px 0;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.8;
+    }
+    .empty-icon { font-size: 40px; margin-bottom: 12px; }
+
+    /* ── TOAST ────────────────────────────────────────── */
+    #toast {
+      position: fixed;
+      bottom: 40px;
+      left: 50%;
+      transform: translateX(-50%) translateY(20px);
+      background: var(--surface);
+      border: 1.5px solid var(--rim);
+      border-radius: 99px;
+      padding: 10px 22px;
+      font-size: 13px;
+      color: var(--text);
+      letter-spacing: .5px;
+      opacity: 0;
+      transition: opacity .25s, transform .25s;
+      pointer-events: none;
+      white-space: nowrap;
+      z-index: 999;
+    }
+    #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+    /* ── LOADING ──────────────────────────────────────── */
+    #loadingScreen {
+      z-index: 200;
+      background: var(--bg);
+    }
+    .loader-ring {
+      width: 48px; height: 48px;
+      border: 3px solid var(--rim);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin .8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* color dots */
+    .dot-me   { background: var(--accent); }
+    .dot-them { background: var(--gold); }
+
+    /* offline banner */
+    #offlineBanner {
+      position: fixed; top: 0; left: 0; right: 0;
+      background: var(--red);
+      color: #fff;
+      text-align: center;
+      font-size: 12px;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      padding: 6px;
+      z-index: 300;
+      transform: translateY(-100%);
+      transition: transform .3s;
+    }
+    #offlineBanner.show { transform: translateY(0); }
+  </style>
+</head>
+<body>
+
+<!-- OFFLINE BANNER -->
+<div id="offlineBanner">⚠ You're offline — data may be stale</div>
+
+<!-- LOADING -->
+<div class="screen" id="loadingScreen">
+  <div class="loader-ring"></div>
+</div>
+
+<!-- LOGIN -->
+<div class="screen hidden" id="loginScreen">
+  <div class="login-logo">
+    <div class="logo-mark">÷2</div>
+    <h1>Splits</h1>
+  </div>
+  <div class="name-input-wrap">
+    <label>Who are you?</label>
+    <input id="nameInput" type="text" placeholder="Enter your name" autocomplete="off" spellcheck="false" />
+    <button class="btn-primary" id="loginBtn">Continue</button>
+  </div>
+  <p class="login-hint">Your name is how others see you.<br>Both of you use the same app.</p>
+</div>
+
+<!-- HOME -->
+<div class="screen hidden" id="homeScreen">
+  <div class="home-header">
+    <div class="header-left">
+      <span class="greeting">Hey there,</span>
+      <span class="username-display" id="headerName">—</span>
+    </div>
+    <div class="header-actions">
+      <button class="icon-btn" id="historyBtn" title="History">📋</button>
+      <button class="icon-btn" id="logoutBtn" title="Switch user">↩</button>
+    </div>
+  </div>
+
+  <div class="month-card">
+    <div class="month-label" id="monthLabel">— 2025</div>
+    <div class="month-total">
+      <span class="currency">₹</span><span id="totalAmount">0</span>
+    </div>
+    <div class="month-divider"></div>
+    <div class="member-totals">
+      <div class="member-total">
+        <div class="member-name"><span class="dot dot-me"></span><span id="m1name">—</span></div>
+        <div class="member-amount">₹<span id="m1amount">0</span></div>
+      </div>
+      <div class="member-total">
+        <div class="member-name"><span class="dot dot-them"></span><span id="m2name">—</span></div>
+        <div class="member-amount">₹<span id="m2amount">0</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="swipe-zone" id="swipeZone">
+    <div class="swipe-hint">
+      <div class="hint-arrow up">↑</div>
+      <div class="hint-label">swipe up to add</div>
+    </div>
+    <div class="swipe-center">
+      <div class="swipe-icon-ring" id="swipeIcon">₹</div>
+      <div class="swipe-label" id="swipeLabel">your expenses</div>
+    </div>
+    <div class="swipe-hint">
+      <div class="hint-label">swipe down to remove</div>
+      <div class="hint-arrow down">↓</div>
+    </div>
+  </div>
+
+  <div class="live-indicator">
+    <div class="live-dot"></div>
+    live · synced with Firebase
+  </div>
+</div>
+
+<!-- MODAL -->
+<div class="modal-overlay hidden" id="modal">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title">
+      Amount to <span class="mode-badge" id="modeBadge">add</span>
+    </div>
+    <div class="amount-input-wrap">
+      <span class="amount-symbol">₹</span>
+      <input id="amountInput" type="number" inputmode="decimal" placeholder="0" min="0" />
+    </div>
+    <div class="modal-date" id="modalDate">—</div>
+    <div class="modal-actions">
+      <button class="btn-cancel" id="cancelBtn">Cancel</button>
+      <button class="btn-confirm add" id="confirmBtn">Add</button>
+    </div>
+  </div>
+</div>
+
+<!-- HISTORY SCREEN -->
+<div class="screen hidden" id="historyScreen">
+  <div class="history-header">
+    <button class="back-btn" id="backBtn">←</button>
+    <span class="history-title">History</span>
+  </div>
+  <div class="history-body" id="historyBody"></div>
+</div>
+
+<div id="toast"></div>
+
+<!-- Firebase + App Logic -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import {
+    getFirestore, collection, addDoc, onSnapshot,
+    query, orderBy, where, Timestamp, doc, deleteDoc
+  } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+  // ── FIREBASE CONFIG ─────────────────────────────────────────
+  // 🔴 REPLACE THIS BLOCK with your own firebaseConfig from Firebase Console
+  const firebaseConfig = {
+    apiKey: "AIzaSyBiwJJHmiJ4-3MAlKWydGxVO6sc2P8EB3o",
+    authDomain: "home-expense-ebb69.firebaseapp.com",
+    projectId: "home-expense-ebb69",
+    storageBucket: "home-expense-ebb69.firebasestorage.app",
+    messagingSenderId: "803242375409",
+    appId: "1:803242375409:web:2ae0f97355ccfa0e81d150",
+    measurementId: "G-2PN5SG02K2"
+  };
+  // ────────────────────────────────────────────────────────────
+
+  const fbApp = initializeApp(firebaseConfig);
+  const db    = getFirestore(fbApp);
+  const COL   = "expenses";
+
+  // ── STATE ───────────────────────────────────────────────────
+  let currentUser = localStorage.getItem("splits_user") || null;
+  let modalMode   = "add"; // "add" | "sub"
+  let unsubscribe = null;
+
+  // ── DOM ─────────────────────────────────────────────────────
+  const $ = id => document.getElementById(id);
+  const screens = {
+    loading: $("loadingScreen"),
+    login:   $("loginScreen"),
+    home:    $("homeScreen"),
+    history: $("historyScreen"),
+  };
+
+  function show(name) {
+    Object.values(screens).forEach(s => s.classList.add("hidden"));
+    screens[name].classList.remove("hidden");
+  }
+
+  // ── TOAST ───────────────────────────────────────────────────
+  let toastTimer;
+  function toast(msg) {
+    const el = $("toast");
+    el.textContent = msg;
+    el.classList.add("show");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => el.classList.remove("show"), 2200);
+  }
+
+  // ── DATES ────────────────────────────────────────────────────
+  const MONTHS = ["January","February","March","April","May","June",
+                  "July","August","September","October","November","December"];
+
+  function nowKey()   { const d=new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`; }
+  function monthName(key) { const [y,m]=key.split("-"); return `${MONTHS[+m-1]} ${y}`; }
+  function todayLabel() {
+    const d = new Date();
+    return `${d.getDate()} ${MONTHS[d.getMonth()]} ${d.getFullYear()}`;
+  }
+
+  // ── INIT ─────────────────────────────────────────────────────
+  show("loading");
+  setTimeout(() => {
+    if (currentUser) startHome();
+    else show("login");
+  }, 800);
+
+  // ── OFFLINE ──────────────────────────────────────────────────
+  window.addEventListener("offline", () => $("offlineBanner").classList.add("show"));
+  window.addEventListener("online",  () => $("offlineBanner").classList.remove("show"));
+
+  // ── LOGIN ─────────────────────────────────────────────────────
+  $("nameInput").addEventListener("keydown", e => { if(e.key==="Enter") doLogin(); });
+  $("loginBtn").addEventListener("click", doLogin);
+
+  function doLogin() {
+    const name = $("nameInput").value.trim();
+    if (!name) { toast("Please enter your name"); return; }
+    currentUser = name;
+    localStorage.setItem("splits_user", name);
+    startHome();
+  }
+
+  function startHome() {
+    show("home");
+    $("headerName").textContent = currentUser;
+    subscribeToMonth(nowKey());
+  }
+
+  $("logoutBtn").addEventListener("click", () => {
+    if (unsubscribe) unsubscribe();
+    currentUser = null;
+    localStorage.removeItem("splits_user");
+    $("nameInput").value = "";
+    show("login");
+  });
+
+  // ── FIRESTORE SUBSCRIPTION ────────────────────────────────────
+  function subscribeToMonth(monthKey) {
+    if (unsubscribe) unsubscribe();
+    const [y, m] = monthKey.split("-").map(Number);
+    const start  = new Date(y, m-1, 1);
+    const end    = new Date(y, m,   1);
+
+    $("monthLabel").textContent = monthName(monthKey);
+
+    const q = query(
+      collection(db, COL),
+      where("ts", ">=", Timestamp.fromDate(start)),
+      where("ts", "<",  Timestamp.fromDate(end)),
+      orderBy("ts", "asc")
+    );
+
+    unsubscribe = onSnapshot(q, snap => {
+      const docs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      renderHome(docs);
+    }, err => {
+      console.error(err);
+      toast("Firebase error — check console");
+    });
+  }
+
+  function renderHome(docs) {
+    // Build per-user totals
+    const totals = {};
+    docs.forEach(d => {
+      totals[d.user] = (totals[d.user] || 0) + d.amount;
+    });
+
+    const users   = Object.keys(totals);
+    const grand   = Object.values(totals).reduce((a,b) => a+b, 0);
+
+    $("totalAmount").textContent = fmt(grand);
+
+    // Always show current user first
+    const order = [currentUser, ...users.filter(u => u !== currentUser)];
+    const [u1, u2] = order;
+
+    $("m1name").textContent   = u1 || "—";
+    $("m1amount").textContent = fmt(totals[u1] || 0);
+    $("m2name").textContent   = u2 || "Waiting...";
+    $("m2amount").textContent = fmt(totals[u2] || 0);
+  }
+
+  function fmt(n) { return Math.max(0, n).toLocaleString("en-IN"); }
+
+  // ── SWIPE ─────────────────────────────────────────────────────
+  const zone = $("swipeZone");
+  let startY = 0, startX = 0, dragging = false;
+  const THRESHOLD = 60;
+
+  zone.addEventListener("touchstart", e => {
+    startY = e.touches[0].clientY;
+    startX = e.touches[0].clientX;
+    dragging = true;
+  }, { passive: true });
+
+  zone.addEventListener("touchmove", e => {
+    if (!dragging) return;
+    const dy = startY - e.touches[0].clientY;
+    const dx = Math.abs(e.touches[0].clientX - startX);
+    if (Math.abs(dy) < 10) return;
+    if (dx > Math.abs(dy)) { dragging = false; return; }
+
+    if (dy > 20) {
+      zone.classList.add("dragging-up");
+      zone.classList.remove("dragging-down");
+      $("swipeIcon").textContent = "+";
+    } else if (dy < -20) {
+      zone.classList.add("dragging-down");
+      zone.classList.remove("dragging-up");
+      $("swipeIcon").textContent = "−";
+    } else {
+      zone.classList.remove("dragging-up","dragging-down");
+      $("swipeIcon").textContent = "₹";
+    }
+  }, { passive: true });
+
+  zone.addEventListener("touchend", e => {
+    if (!dragging) return;
+    dragging = false;
+    const dy = startY - e.changedTouches[0].clientY;
+    const dx = Math.abs(e.changedTouches[0].clientX - startX);
+    zone.classList.remove("dragging-up","dragging-down");
+    $("swipeIcon").textContent = "₹";
+    if (dx > Math.abs(dy)) return;
+    if (dy > THRESHOLD)       openModal("add");
+    else if (dy < -THRESHOLD) openModal("sub");
+  }, { passive: true });
+
+  // Mouse fallback for desktop testing
+  let mouseStartY = 0, mouseDragging = false;
+  zone.addEventListener("mousedown", e => { mouseStartY = e.clientY; mouseDragging = true; });
+  window.addEventListener("mouseup", e => {
+    if (!mouseDragging) return;
+    mouseDragging = false;
+    const dy = mouseStartY - e.clientY;
+    if (dy > THRESHOLD)       openModal("add");
+    else if (dy < -THRESHOLD) openModal("sub");
+  });
+
+  // ── MODAL ─────────────────────────────────────────────────────
+  function openModal(mode) {
+    modalMode = mode;
+    const isAdd = mode === "add";
+    $("modeBadge").textContent  = isAdd ? "add" : "remove";
+    $("modeBadge").className    = `mode-badge ${isAdd ? "add" : "sub"}`;
+    $("confirmBtn").textContent = isAdd ? "Add" : "Remove";
+    $("confirmBtn").className   = `btn-confirm ${isAdd ? "add" : "sub"}`;
+    $("modalDate").textContent  = `📅 ${todayLabel()}`;
+    $("amountInput").value      = "";
+    $("modal").classList.remove("hidden");
+    setTimeout(() => $("amountInput").focus(), 100);
+  }
+
+  $("cancelBtn").addEventListener("click", closeModal);
+  $("modal").addEventListener("click", e => { if(e.target === $("modal")) closeModal(); });
+
+  function closeModal() { $("modal").classList.add("hidden"); }
+
+  $("confirmBtn").addEventListener("click", async () => {
+    const raw = parseFloat($("amountInput").value);
+    if (!raw || raw <= 0) { toast("Enter a valid amount"); return; }
+
+    const amount = modalMode === "sub" ? -raw : raw;
+
+    try {
+      await addDoc(collection(db, COL), {
+        user:   currentUser,
+        amount: amount,
+        ts:     Timestamp.now(),
+      });
+      closeModal();
+      toast(modalMode === "add" ? `₹${fmt(raw)} added ✓` : `₹${fmt(raw)} removed ✓`);
+    } catch (err) {
+      console.error(err);
+      toast("Failed to save — check connection");
+    }
+  });
+
+  $("amountInput").addEventListener("keydown", e => {
+    if (e.key === "Enter") $("confirmBtn").click();
+  });
+
+  // ── HISTORY ───────────────────────────────────────────────────
+  $("historyBtn").addEventListener("click", openHistory);
+  $("backBtn").addEventListener("click", () => { show("home"); });
+
+  async function openHistory() {
+    show("history");
+    $("historyBody").innerHTML = `<div class="empty-state"><div class="loader-ring" style="margin:0 auto"></div></div>`;
+
+    const q = query(collection(db, COL), orderBy("ts", "desc"));
+
+    onSnapshot(q, snap => {
+      const docs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      renderHistory(docs);
+    });
+  }
+
+  function renderHistory(docs) {
+    if (!docs.length) {
+      $("historyBody").innerHTML = `
+        <div class="empty-state">
+          <div class="empty-icon">🧾</div>
+          No expenses recorded yet.<br>Go back and swipe up to add one!
+        </div>`;
+      return;
+    }
+
+    // Group by month
+    const groups = {};
+    docs.forEach(d => {
+      const ts = d.ts.toDate();
+      const key = `${ts.getFullYear()}-${String(ts.getMonth()+1).padStart(2,"0")}`;
+      if (!groups[key]) groups[key] = [];
+      groups[key].push(d);
+    });
+
+    let html = "";
+    Object.entries(groups).forEach(([key, entries]) => {
+      const totals = {};
+      entries.forEach(e => { totals[e.user] = (totals[e.user]||0) + e.amount; });
+      const grand = Object.values(totals).reduce((a,b)=>a+b,0);
+      const users = Object.keys(totals);
+
+      html += `
+        <div class="month-group">
+          <div class="month-group-label">${monthName(key)}</div>
+          <div class="month-summary-card">
+            <div class="month-summary-total">₹${fmt(grand)}</div>
+            ${users.map((u,i) => `
+              <div class="month-summary-row">
+                <div class="month-summary-name">
+                  <span class="dot ${i===0?'dot-me':'dot-them'}"></span>${u}
+                </div>
+                <div class="month-summary-amount">₹${fmt(totals[u])}</div>
+              </div>
+            `).join("")}
+          </div>
+          <div class="entries-list">
+            ${entries.map(e => {
+              const ts   = e.ts.toDate();
+              const date = `${ts.getDate()} ${MONTHS[ts.getMonth()]}`;
+              const pos  = e.amount >= 0;
+              return `
+                <div class="entry-item">
+                  <div class="entry-left">
+                    <div class="entry-who">
+                      <span class="dot ${e.user===currentUser?'dot-me':'dot-them'}"></span>
+                      ${e.user}
+                    </div>
+                    <div class="entry-date">${date}</div>
+                  </div>
+                  <div class="entry-amount ${pos?'positive':'negative'}">
+                    ${pos?'+':'-'}₹${fmt(Math.abs(e.amount))}
+                  </div>
+                </div>`;
+            }).join("")}
+          </div>
+        </div>`;
+    });
+
+    $("historyBody").innerHTML = html;
+  }
+</script>
+</body>
+</html>

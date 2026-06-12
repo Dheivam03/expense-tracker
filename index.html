@@ -173,6 +173,38 @@
     .dot-me   { background: var(--accent); }
     .dot-them { background: var(--gold); }
 
+    /* ── SWIPE ZONE ── */
+    .swipe-zone {
+      flex-shrink: 0; width: 100%; display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      touch-action: pan-y; user-select: none; position: relative;
+      gap: 0; padding: 8px 0;
+    }
+    .swipe-hint-up, .swipe-hint-down {
+      display: flex; flex-direction: column; align-items: center; gap: 6px;
+      opacity: .4; transition: opacity .2s;
+    }
+    .swipe-zone.dragging-up .swipe-hint-up { opacity: 1; }
+    .swipe-zone.dragging-down .swipe-hint-down { opacity: 1; }
+    .hint-arrow { font-size: 18px; color: var(--sub); }
+    .swipe-hint-up .hint-arrow { color: var(--add); animation: bob-up 2.2s ease-in-out infinite; }
+    .swipe-hint-down .hint-arrow { color: var(--red); animation: bob-down 2.2s ease-in-out infinite .4s; }
+    @keyframes bob-up   { 0%,100%{transform:translateY(2px)} 50%{transform:translateY(-4px)} }
+    @keyframes bob-down { 0%,100%{transform:translateY(-2px)} 50%{transform:translateY(4px)} }
+    .hint-label { font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: var(--muted); }
+    .swipe-center { display: flex; flex-direction: column; align-items: center; gap: 8px; margin: 16px 0; }
+    .swipe-ring {
+      width: 76px; height: 76px; border-radius: 50%;
+      border: 1px solid var(--rim2);
+      display: flex; align-items: center; justify-content: center;
+      font-family: var(--mono); font-size: 26px; color: var(--muted);
+      background: var(--surface);
+      transition: all .18s;
+    }
+    .swipe-zone.dragging-up   .swipe-ring { border-color: var(--add); color: var(--add); background: rgba(61,220,132,.08); transform: scale(1.1); }
+    .swipe-zone.dragging-down .swipe-ring { border-color: var(--red); color: var(--red); background: rgba(255,95,95,.08);  transform: scale(1.1); }
+    .swipe-sub { font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: var(--muted); }
+
     /* ── ENTRIES LIST ── */
     .entries-scroll {
       flex: 1; width: 100%; overflow-y: auto;
@@ -501,6 +533,22 @@
       </div>
     </div>
 
+    <!-- Swipe zone -->
+    <div class="swipe-zone" id="swipeZone">
+      <div class="swipe-hint-up">
+        <div class="hint-arrow">↑</div>
+        <div class="hint-label">swipe up · add</div>
+      </div>
+      <div class="swipe-center">
+        <div class="swipe-ring" id="swipeRing">₹</div>
+        <div class="swipe-sub">your expenses</div>
+      </div>
+      <div class="swipe-hint-down">
+        <div class="hint-label">swipe down · remove</div>
+        <div class="hint-arrow">↓</div>
+      </div>
+    </div>
+
     <!-- Entries list -->
     <div class="entries-scroll" id="homeEntries"></div>
 
@@ -705,7 +753,7 @@
     btn.addEventListener("click", () => setActiveCat(btn.dataset.cat));
   });
 
-  $("topAddBtn").addEventListener("click", () => openModal("add"));
+  $("topAddBtn").addEventListener("click", () => openAddCat());
 
   // ── HOME ──
   function startHome() {
@@ -782,6 +830,48 @@
         </div>`;
     }).join("");
   }
+
+  // ── SWIPE ──
+  const zone = $("swipeZone");
+  let startY=0, startX=0, dragging=false;
+  const THRESH = 58;
+
+  zone.addEventListener("touchstart", e => {
+    startY = e.touches[0].clientY; startX = e.touches[0].clientX; dragging = true;
+  }, { passive: true });
+
+  zone.addEventListener("touchmove", e => {
+    if (!dragging) return;
+    const dy = startY - e.touches[0].clientY;
+    const dx = Math.abs(e.touches[0].clientX - startX);
+    if (dx > Math.abs(dy)) { dragging = false; return; }
+    zone.classList.toggle("dragging-up",   dy > 20);
+    zone.classList.toggle("dragging-down", dy < -20);
+    if (dy > 20)       $("swipeRing").textContent = "+";
+    else if (dy < -20) $("swipeRing").textContent = "−";
+    else               $("swipeRing").textContent = "₹";
+  }, { passive: true });
+
+  zone.addEventListener("touchend", e => {
+    if (!dragging) return; dragging = false;
+    const dy = startY - e.changedTouches[0].clientY;
+    const dx = Math.abs(e.changedTouches[0].clientX - startX);
+    zone.classList.remove("dragging-up","dragging-down");
+    $("swipeRing").textContent = "₹";
+    if (dx > Math.abs(dy)) return;
+    if      (dy >  THRESH) openModal("add");
+    else if (dy < -THRESH) openModal("sub");
+  }, { passive: true });
+
+  // mouse fallback
+  let mY=0, mDrag=false;
+  zone.addEventListener("mousedown", e => { mY = e.clientY; mDrag = true; });
+  window.addEventListener("mouseup", e => {
+    if (!mDrag) return; mDrag = false;
+    const dy = mY - e.clientY;
+    if      (dy >  THRESH) openModal("add");
+    else if (dy < -THRESH) openModal("sub");
+  });
 
   // ── BOTTOM NAV ──
   $("navHome").addEventListener("click", () => {
